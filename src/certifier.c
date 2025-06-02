@@ -503,29 +503,6 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
         //printf("DBG: construct pkcs11 ref file \n");
         construct_pkcs11_ref_key(certifier->tmp_map.private_ec_key,42);
         //print_ec_key(certifier->tmp_map.private_ec_key);
-#if 1
-#define PKCS11_ENGINE_PATH "/usr/lib/engines-3/pkcs11.so"
-#define PKCS11_MODULE_PATH "/usr/lib/libckteec.so"
-#define PRIV_URI "pkcs11:id=%42;type=private;pin-value=12345678"
-
-    ENGINE *e = NULL;
-    e = ENGINE_by_id("pkcs11");
-    if (!ENGINE_ctrl_cmd_string(e, "PIN", "12345678", 0)) {
-            fprintf(stderr, "Error setting PIN\n");
-    }
-    if (!ENGINE_ctrl_cmd_string(e, "MODULE_PATH", PKCS11_MODULE_PATH, 0)) {
-             fprintf(stderr, "Error setting PKCS#11 module path\n");
-    }
-    EVP_PKEY *pkey = ENGINE_load_private_key(e, PRIV_URI, NULL, NULL);
-    if (!pkey) {
-            fprintf(stderr, "Error loading private key\n");
-    }
-    else {
-            printf("successfully loading(from Libcertifier)PRI:privkey from pkcs#11 token \n");
-    }
-    certifier->tmp_map.private_ec_key = EVP_PKEY_get1_EC_KEY(pkey);
-#endif
-
         security_persist_pkcs_12_file(p12_filename, password, certifier->tmp_map.private_ec_key, certifier->tmp_map.x509_cert,
                                       certs, &certifier_err_info);
         assign_last_error(certifier, &certifier_err_info);
