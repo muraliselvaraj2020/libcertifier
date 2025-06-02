@@ -31,6 +31,13 @@
 #include "certifier/timer.h"
 #include "curl/curl.h"
 
+#include <openssl/engine.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/engine.h>
+#include <openssl/provider.h>
+
 #ifndef CERTIFIER_VERSION
 #define CERTIFIER_VERSION "0.1-071320 (opensource)"
 #endif
@@ -45,7 +52,7 @@ static CERTIFIER_LOG_callback logger;
 
 typedef struct Map
 {
-    char node_address[SMALL_STRING_SIZE];
+    char node_address[VERY_SMALL_STRING_SIZE];
     char * base64_public_key;
     unsigned char * der_public_key;
     int der_public_key_len;
@@ -199,6 +206,13 @@ int certifier_setup_keys(Certifier * certifier)
     const char * password     = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
     const char * ecc_curve_id = certifier_get_property(certifier, CERTIFIER_OPT_ECC_CURVE_ID);
     char * cn_prefix          = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
+
+#if 0
+    if (certifier_get_property(certifier, CERTIFIER_OPT_PRIVATE_KEY_URI) != NULL)
+    {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_OPT_PRIVATE_KEY_URI));
+    }
+#endif
 
     ECC_KEY * new_key = NULL;
 
@@ -386,14 +400,69 @@ int certifier_revoke_certificate(Certifier * certifier)
     return (return_code);
 }
 
+
+void print_ec_key(EC_KEY *key) {
+BIO *bio = BIO_new(BIO_s_mem());
+PEM_write_bio_ECPrivateKey(bio, key, NULL, NULL, 0, NULL, NULL);
+char *key_data;
+long key_len = BIO_get_mem_data(bio, &key_data);
+printf("EC PEM Private Key:\n%.*s\n", (int)key_len, key_data);
+if (bio == NULL) {
+printf("Failed to create BIO\n");
+}
+if (EC_KEY_print(bio, key, 0)) {
+key_len = BIO_get_mem_data(bio, &key_data);
+printf("EC Key Details:\n%.*s\n", (int)key_len, key_data);
+} else {
+        printf("Failed to print EC Key\n");
+}
+}
+
+void construct_pkcs11_ref_key(EC_KEY *key, unsigned char key_id) {
+    unsigned char custom_priv_key[32] = {0};
+unsigned char magic_number[8] = {
+0xA5, 0xA6, 0xB5, 0xB6, 0xA5, 0xA6, 0xB5, 0xB6
+};
+
+    // Step 1: Set the pattern 0x10 followed by 14 zeros
+    custom_priv_key[0] = 0x10;
+    memset(custom_priv_key + 1, 0x00, 14);
+
+    // Step 2: Set the 64-bit magic number (8 bytes of 0xCC)
+memcpy(custom_priv_key + 22, magic_number, sizeof(magic_number));
+
+    // Step 3: Set the final byte as the key ID
+    custom_priv_key[31] = key_id;
+
+    // Step 4: Create a new EC_KEY object with the same group
+    const EC_GROUP *group = EC_KEY_get0_group(key);
+    EC_KEY *new_key = EC_KEY_new();
+    if (!new_key || !EC_KEY_set_group(new_key, group)) {
+        printf("Failed to create or set group for new EC_KEY\n");
+        EC_KEY_free(new_key);
+        return;
+    }
+        // Step 5: Set the custom private key
+    if (EC_KEY_oct2priv(new_key, custom_priv_key, sizeof(custom_priv_key)) == 0) {
+        printf("Failed to set private key\n");
+        EC_KEY_free(new_key);
+        return;
+    }
+
+    // Step 6: Copy the new key to the original key
+    if (EC_KEY_copy(key, new_key) == 0) {
+        printf("Failed to copy new key\n");
+    }
+
+    EC_KEY_free(new_key);
+}
+
 static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs, bool renew_mode, const char * p12_filename)
 {
     int rc                            = 0;
     CertifierError certifier_err_info = CERTIFIER_ERROR_INITIALIZER;
     X509_LIST * certs                 = NULL;
     const char * password             = NULL;
-    unsigned char *x509_der;
-    size_t x509_len;
 
     log_info("\nTrimming x509 certificates...\n");
     util_trim(x509_certs);
@@ -409,11 +478,7 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
         goto cleanup;
     }
 
-    int log_level = (int) (size_t) certifier_get_property(certifier, CERTIFIER_OPT_LOG_LEVEL);
-    if (log_level != 4)
-    {
-        security_print_certs_in_list(certs, stderr);
-    }
+    security_print_certs_in_list(certs, stderr);
 
     /* Cert is owned by the 'certs' stack; create our own copy and save it */
     _certifier_set_x509_cert(certifier, security_cert_list_pop(certs, 0));
@@ -422,24 +487,6 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
         rc = CERTIFIER_ERR_REGISTER_SECURITY_6;
         set_last_error(certifier, rc, util_format_error_here("Failed to get certificate from certificate list!"));
         goto cleanup;
-    }
-    else
-    {
-        // Export X509 certificate to be used externally
-        X509_CERT * cert_x509_dup = security_dup_cert(certifier->tmp_map.x509_cert);
-
-        if (cert_x509_dup)
-        {
-            rc = certifier_set_property(certifier, CERTIFIER_OPT_CERT_X509_OUT, (const void *) cert_x509_dup);
-
-            if (rc)
-            {
-                set_last_error(certifier, rc, util_format_error_here("Failed to set certificate property CERTIFIER_OPT_CERT_X509_OUT!"));
-
-                security_free_cert(cert_x509_dup);
-                goto cleanup;
-            }
-        }
     }
 
     password = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
@@ -453,6 +500,32 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
     else
     {
         log_info("\nSaving PKCS12 file %s...\n", p12_filename);
+        //printf("DBG: construct pkcs11 ref file \n");
+        construct_pkcs11_ref_key(certifier->tmp_map.private_ec_key,42);
+        //print_ec_key(certifier->tmp_map.private_ec_key);
+#if 1
+#define PKCS11_ENGINE_PATH "/usr/lib/engines-3/pkcs11.so"
+#define PKCS11_MODULE_PATH "/usr/lib/libckteec.so"
+#define PRIV_URI "pkcs11:id=%42;type=private;pin-value=12345678"
+
+    ENGINE *e = NULL;
+    e = ENGINE_by_id("pkcs11");
+    if (!ENGINE_ctrl_cmd_string(e, "PIN", "12345678", 0)) {
+            fprintf(stderr, "Error setting PIN\n");
+    }
+    if (!ENGINE_ctrl_cmd_string(e, "MODULE_PATH", PKCS11_MODULE_PATH, 0)) {
+             fprintf(stderr, "Error setting PKCS#11 module path\n");
+    }
+    EVP_PKEY *pkey = ENGINE_load_private_key(e, PRIV_URI, NULL, NULL);
+    if (!pkey) {
+            fprintf(stderr, "Error loading private key\n");
+    }
+    else {
+            printf("successfully loading(from Libcertifier)PRI:privkey from pkcs#11 token \n");
+    }
+    certifier->tmp_map.private_ec_key = EVP_PKEY_get1_EC_KEY(pkey);
+#endif
+
         security_persist_pkcs_12_file(p12_filename, password, certifier->tmp_map.private_ec_key, certifier->tmp_map.x509_cert,
                                       certs, &certifier_err_info);
         assign_last_error(certifier, &certifier_err_info);
@@ -692,6 +765,34 @@ int certifier_create_x509_crt(Certifier * certifier, char ** out_crt)
         log_error("Could not lazily obtain the private key as it was NULL. Received error code: <%i>", return_code);
         goto cleanup;
     }
+#if 0
+    if (certifier_get_property(certifier, CERTIFIER_OPT_PRIVATE_KEY_URI) != NULL)
+#endif
+
+#if 1
+#define PKCS11_ENGINE_PATH "/usr/lib/engines-3/pkcs11.so"
+#define PKCS11_MODULE_PATH "/usr/lib/libckteec.so"
+#define SEED_PRIV_URI "pkcs11:id=%40;type=private;pin-value=12345678"
+
+    ENGINE *e = NULL;
+    e = ENGINE_by_id("pkcs11");
+    //e = ENGINE_by_id("dynamic");
+    if (!ENGINE_ctrl_cmd_string(e, "PIN", "12345678", 0)) {
+            fprintf(stderr, "Error setting PIN\n");
+    }
+    if (!ENGINE_ctrl_cmd_string(e, "MODULE_PATH", PKCS11_MODULE_PATH, 0)) {
+             fprintf(stderr, "Error setting PKCS#11 module path\n");
+    }
+    EVP_PKEY *pkey = ENGINE_load_private_key(e, SEED_PRIV_URI, NULL, NULL);
+    if (!pkey) {
+            fprintf(stderr, "Error loading private key\n");
+    }
+    else {
+            printf("successfully loading(from Libcertifier)SEED:privkey from pkcs#11 token \n");
+    }
+    private_key = EVP_PKEY_get1_EC_KEY(pkey);
+    //ENGINE_free(e);
+#endif
 
     return_code = security_generate_x509_crt(&generated_crt, (X509_CERT *) cert, (ECC_KEY *) private_key);
     if (return_code)
@@ -883,7 +984,7 @@ void _certifier_set_x509_cert(Certifier * certifier, const X509_CERT * cert)
 
     if (cert != NULL)
     {
-        tmp = cert;
+        tmp = security_dup_cert(cert);
     }
 
     certifier->tmp_map.x509_cert = tmp;
@@ -1409,7 +1510,7 @@ CertifierPropMap * certifier_easy_api_get_props(Certifier * certifier)
 
 void certifier_easy_api_get_node_address(Certifier * certifier, char * node_address)
 {
-    memcpy(node_address, certifier->tmp_map.node_address, SMALL_STRING_SIZE);
+    memcpy(node_address, certifier->tmp_map.node_address, VERY_SMALL_STRING_SIZE);
 }
 
 char * certifier_create_csr_post_data(CertifierPropMap * props, const unsigned char * csr, const char * node_address,
@@ -1434,7 +1535,6 @@ char * certifier_create_csr_post_data(CertifierPropMap * props, const unsigned c
     const char * authenticated_tag_1 = property_get(props, CERTIFIER_OPT_AUTH_TAG_1);
     size_t num_days                  = (size_t) property_get(props, CERTIFIER_OPT_VALIDITY_DAYS);
     bool is_certificate_lite         = property_is_option_set(props, CERTIFIER_OPTION_CERTIFICATE_LITE);
-    bool use_scopes                  = property_is_option_set(props, CERTIFIER_OPTION_USE_SCOPES);
 
     json_object_set_string(root_object, "csr", (const char *) csr);
 
@@ -1519,12 +1619,6 @@ char * certifier_create_csr_post_data(CertifierPropMap * props, const unsigned c
     {
         log_debug("CertificateLite=1");
         json_object_set_string(root_object, "certificateLite", "true");
-    }
-
-    if (use_scopes)
-    {
-        log_debug("UseScopes=1");
-        json_object_set_string(root_object, "useScopes", "true");
     }
 
     serialized_string = json_serialize_to_string_pretty(root_value);
