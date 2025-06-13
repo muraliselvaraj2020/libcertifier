@@ -203,6 +203,13 @@ typedef enum CERTIFIER_OPT
     CERTIFIER_OPT_MTLS_P12_PATH,
     CERTIFIER_OPT_MTLS_P12_PASSWORD,
 
+   /** 
+    * field to use EC keypair from pkcs11 token 
+    * 
+    * @note value type: ECC_KEY *
+    */
+    CERTIFIER_AUTH_PKCS11_KEYPAIR,
+
 } CERTIFIER_OPT;
 
 typedef enum
