@@ -153,6 +153,8 @@ typedef struct
     X509_CERT  * cert_x509_out;
     const char * mtls_p12_path;
     const char * mtls_p12_password;
+    bool pkcs11_support;
+    ECC_KEY * pkcs11_keypair_crt;    
 } get_cert_param_t;
 
 /** @struct get_cert_status_param_t
