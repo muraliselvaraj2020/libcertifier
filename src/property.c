@@ -175,6 +175,7 @@ struct _PropMap
     X509_CERT * cert_x509_out;
     char * mtls_filename;
     char * mtls_p12_filename;
+    ECC_KEY * pkcs11_keypair_crt;
 };
 
 static void free_prop_map_values(CertifierPropMap * prop_map);
@@ -308,6 +309,18 @@ int property_set_int(CertifierPropMap * prop_map, CERTIFIER_OPT name, int value)
         retval = CERTIFIER_ERR_PROPERTY_SET_5;
     }
 
+    return retval;
+}
+
+int property_set_ecc_key(CertifierPropMap * prop_map, CERTIFIER_OPT name, ECC_KEY * value)
+{
+    int retval = 0;
+    switch (name)
+    {
+    case CERTIFIER_AUTH_PKCS11_KEYPAIR:
+        prop_map->pkcs11_keypair_crt = value;
+        break;
+    }
     return retval;
 }
 
@@ -541,6 +554,10 @@ int property_set(CertifierPropMap * prop_map, CERTIFIER_OPT name, const void * v
         break;
     }
 
+    case CERTIFIER_AUTH_PKCS11_KEYPAIR:
+        retval = property_set_ecc_key(prop_map, name, (ECC_KEY *) value);
+        break;
+
     default:
         /* some unknown property type */
         log_warn("property_set: unrecognized property [%d]", name);
@@ -770,6 +787,10 @@ void * property_get(CertifierPropMap * prop_map, CERTIFIER_OPT name)
         retval                      = (void *) property_is_option_set(prop_map, option);
         break;
     }
+
+    case CERTIFIER_AUTH_PKCS11_KEYPAIR:
+         retval = (void *) (ECC_KEY *) prop_map->pkcs11_keypair_crt;
+         break;
 
     default:
         log_warn("property_get: unrecognized property [%d]", name);
