@@ -684,15 +684,15 @@ int certifier_create_x509_crt(Certifier * certifier, char ** out_crt)
         log_error("Could not lazily obtain the cert as it was NULL. Received error code: <%i>", return_code);
         goto cleanup;
     }
-
-    private_key = _certifier_get_privkey(certifier);
-    if (private_key == NULL)
-    {
-        return_code = CERTIFIER_ERR_CREATE_X509_CERT_7;
-        log_error("Could not lazily obtain the private key as it was NULL. Received error code: <%i>", return_code);
-        goto cleanup;
+    if (private_key = certifier_get_property(certifier, CERTIFIER_AUTH_PKCS11_KEYPAIR) == NULL) {
+        private_key = _certifier_get_privkey(certifier);
+        if (private_key == NULL)
+        {
+            return_code = CERTIFIER_ERR_CREATE_X509_CERT_7;
+            log_error("Could not lazily obtain the private key as it was NULL. Received error code: <%i>", return_code);
+            goto cleanup;
+        }
     }
-    private_key = certifier_get_property(certifier, CERTIFIER_AUTH_PKCS11_KEYPAIR);
     return_code = security_generate_x509_crt(&generated_crt, (X509_CERT *) cert, (ECC_KEY *) private_key);
     if (return_code)
     {
