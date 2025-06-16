@@ -315,9 +315,9 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
 
     Certifier * certifier = get_certifier_instance();
 
-    if (params->pkcs11_support) {
+    if (params->pkcs11_support == true) {
 	if (params->pkcs11_keypair_crt != NULL) {
-             certifier_set_property(certifier, CERTIFIER_AUTH_PKCS11_KEYPAIR, (const ECC_KEY *)(params->pkcs11_keypair_crt));
+	     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_AUTH_PKCS11_KEYPAIR, (const ECC_KEY *)(params->pkcs11_keypair_crt)));	
 	}
     }
 
