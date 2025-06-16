@@ -195,6 +195,8 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
     params->domain           = NULL;
     params->serial_number    = NULL;
     params->crt              = NULL;
+    params->pkcs11_support   = false;
+    params->pkcs11_keypair_crt = NULL;	
 
     return XPKI_CLIENT_SUCCESS;
 }
