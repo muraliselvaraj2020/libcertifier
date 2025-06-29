@@ -320,6 +320,9 @@ int property_set_ecc_key(CertifierPropMap * prop_map, CERTIFIER_OPT name, ECC_KE
     case CERTIFIER_AUTH_PKCS11_KEYPAIR:
         prop_map->pkcs11_keypair_crt = value;
         break;
+    case CERTIFIER_PKCS11_REF_KEY:
+        prop_map->pkcs11_refkey = value;
+        break;
     }
     return retval;
 }
@@ -555,6 +558,7 @@ int property_set(CertifierPropMap * prop_map, CERTIFIER_OPT name, const void * v
     }
 
     case CERTIFIER_AUTH_PKCS11_KEYPAIR:
+    case CERTIFIER_PKCS11_REF_KEY:    
         retval = property_set_ecc_key(prop_map, name, (ECC_KEY *) value);
         break;
 
@@ -791,7 +795,9 @@ void * property_get(CertifierPropMap * prop_map, CERTIFIER_OPT name)
     case CERTIFIER_AUTH_PKCS11_KEYPAIR:
          retval = (void *) (ECC_KEY *) prop_map->pkcs11_keypair_crt;
          break;
-
+    case CERTIFIER_PKCS11_REF_KEY:
+        retval = (void *) (ECC_KEY *) prop_map->pkcs11_refkey;
+        break;    
     default:
         log_warn("property_get: unrecognized property [%d]", name);
         retval = NULL;
