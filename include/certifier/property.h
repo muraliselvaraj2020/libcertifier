@@ -209,6 +209,7 @@ typedef enum CERTIFIER_OPT
     * @note value type: ECC_KEY *
     */
     CERTIFIER_AUTH_PKCS11_KEYPAIR,
+    CERTIFIER_PKCS11_REF_KEY,
 
 } CERTIFIER_OPT;
 
