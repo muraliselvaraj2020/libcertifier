@@ -176,6 +176,7 @@ struct _PropMap
     char * mtls_filename;
     char * mtls_p12_filename;
     ECC_KEY * pkcs11_keypair_crt;
+    ECC_KEY * pkcs11_refkey;
 };
 
 static void free_prop_map_values(CertifierPropMap * prop_map);
