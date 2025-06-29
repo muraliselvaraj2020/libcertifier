@@ -452,6 +452,9 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
     }
     else
     {
+        if ( certifier_get_property(certifier, CERTIFIER_AUTH_PKCS11_KEYPAIR) != NULL ) {
+              certifier->tmp_map.private_ec_key = certifier_get_property(certifier, CERTIFIER_PKCS11_REF_KEY);
+        }
         log_info("\nSaving PKCS12 file %s...\n", p12_filename);
         security_persist_pkcs_12_file(p12_filename, password, certifier->tmp_map.private_ec_key, certifier->tmp_map.x509_cert,
                                       certs, &certifier_err_info);
