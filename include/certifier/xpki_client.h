@@ -154,7 +154,8 @@ typedef struct
     const char * mtls_p12_path;
     const char * mtls_p12_password;
     bool pkcs11_support;
-    ECC_KEY * pkcs11_keypair_crt;    
+    ECC_KEY * pkcs11_keypair_crt;
+    ECC_KEY * pkcs11_refkey;
 } get_cert_param_t;
 
 /** @struct get_cert_status_param_t
