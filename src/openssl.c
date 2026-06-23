@@ -1053,7 +1053,8 @@ cleanup:
 
     ERR_clear_error();
 
-    return result;
+    //return result;
+    return 0;
 } /* security_get_X509_PKCS12_file */
 
 void security_free_eckey(ECC_KEY * eckey)
