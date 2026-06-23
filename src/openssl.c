@@ -962,44 +962,56 @@ CertifierError security_get_X509_PKCS12_file(const char * filename, const char *
     bool free_keypair                = false;
     CertifierError result            = CERTIFIER_ERROR_INITIALIZER;
 
+    log_error("dbg: 1 \n");
+    printf(" dbg: 1 \n");
     if (filename == NULL || password == NULL)
     {
         result.application_error_code = OPENSSL_ERR_1;
         result.application_error_msg  = util_format_error_here("invalid arguments");
         goto cleanup;
     }
-
+    log_error("dbg: 2 \n");
+    printf(" dbg: 2 \n");
     if (certs == NULL)
     {
         certs          = sk_X509_new_null();
         free_cert_list = true;
     }
-
+    log_error("dbg: 3 \n");
+    printf(" dbg: 3 \n");
     if (out_keypair == NULL)
     {
         free_keypair = true;
     }
-
+    log_error("dbg: 4 \n");
+    printf(" dbg: 4 \n");
     if (!(fp = XFOPEN(filename, "rb")))
     {
         log_error("Error opening file %s\n", filename);
         goto cleanup;
     }
+    log_error("dbg: 5 \n");
+    printf(" dbg: 5 \n");
     p12 = d2i_PKCS12_fp(fp, NULL);
     if (!p12)
     {
         log_error("Error reading PKCS#12 file\n");
         goto cleanup;
     }
-
+    log_error("dbg: 6 \n");
+    printf(" dbg: 6 \n");
     if (!PKCS12_parse(p12, password, &pkey, &cert, &certs))
     {
         log_error("Error parsing PKCS#12 file\n");
         goto cleanup;
     }
+    log_error("dbg: 7 \n");
+    printf(" dbg: 7 \n");
 
 // Cleanup - free cert after use in calling routine
 cleanup:
+    log_error("dbg: 8 \n");
+    printf(" dbg: 8 \n");
     openssl_error_code            = ERR_get_error();
     result.application_error_code = (int) openssl_error_code;
 
