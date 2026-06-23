@@ -1003,7 +1003,9 @@ CertifierError security_get_X509_PKCS12_file(const char * filename, const char *
     if (!PKCS12_parse(p12, password, &pkey, &cert, &certs))
     {
         log_error("Error parsing PKCS#12 file\n");
-        goto cleanup;
+        log_error("Error in pkcs12_parse dbg: 7 \n");
+        printf("Error in pkcs12_parse dbg: 7 \n");
+        //goto cleanup;
     }
     log_error("dbg: 7 \n");
     printf(" dbg: 7 \n");
