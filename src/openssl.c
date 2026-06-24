@@ -1005,19 +1005,20 @@ CertifierError security_get_X509_PKCS12_file(const char * filename, const char *
         log_error("Error parsing PKCS#12 file\n");
         log_error("Error in pkcs12_parse dbg: 7 \n");
         printf("Error in pkcs12_parse dbg: 7 \n");
-        //goto cleanup;
+        goto cleanup;
     }
     log_error("dbg: 7 \n");
-    printf(" dbg: 7 \n");
+    printf("dbg: 7 \n");
 
 // Cleanup - free cert after use in calling routine
 cleanup:
     log_error("dbg: 8 \n");
     printf(" dbg: 8 \n");
-    openssl_error_code            = ERR_get_error();
-    result.application_error_code = (int) openssl_error_code;
+   // openssl_error_code            = ERR_get_error();
+      openssl_error_code            =  0;
+      result.application_error_code = (int) openssl_error_code;
 
-    result.application_error_code = (int) openssl_error_code;
+   // result.application_error_code = (int) openssl_error_code;
     if (openssl_error_code != 0)
     {
         log_error("Open SSL Error Code: %lu %s\n", openssl_error_code, ERR_error_string(openssl_error_code, NULL));
@@ -1053,8 +1054,7 @@ cleanup:
 
     ERR_clear_error();
 
-    //return result;
-    return 0;
+    return result;
 } /* security_get_X509_PKCS12_file */
 
 void security_free_eckey(ECC_KEY * eckey)
